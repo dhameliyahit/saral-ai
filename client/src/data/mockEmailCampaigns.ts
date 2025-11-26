@@ -1,0 +1,85 @@
+// data/mockEmailCampaigns.ts
+import type { EmailCampaign } from '../types/emailCampaign';
+
+export const mockEmailCampaigns: EmailCampaign[] = [
+  {
+    id: '1',
+    name: 'React Developers Outreach',
+    type: 'email_sequence',
+    status: 'active',
+    subject: 'Exciting React Opportunities at TechCorp',
+    totalRecipients: 150,
+    sentCount: 142,
+    openedCount: 89,
+    repliedCount: 23,
+    deliveryRate: 94.7,
+    openRate: 62.7,
+    replyRate: 16.2,
+    createdAt: '2024-01-15',
+    updatedAt: '2024-01-20'
+  },
+  {
+    id: '2',
+    name: 'LinkedIn Senior Engineers',
+    type: 'linkedin',
+    status: 'paused',
+    subject: 'Connect for Senior Engineering Roles',
+    totalRecipients: 80,
+    sentCount: 45,
+    openedCount: 32,
+    repliedCount: 8,
+    deliveryRate: 100,
+    openRate: 71.1,
+    replyRate: 17.8,
+    createdAt: '2024-01-10',
+    updatedAt: '2024-01-18'
+  },
+  {
+    id: '3',
+    name: 'Q1 Product Managers',
+    type: 'email_sequence',
+    status: 'completed',
+    subject: 'Product Manager Opportunities',
+    totalRecipients: 60,
+    sentCount: 60,
+    openedCount: 42,
+    repliedCount: 15,
+    deliveryRate: 98.3,
+    openRate: 70.0,
+    replyRate: 25.0,
+    createdAt: '2024-01-05',
+    updatedAt: '2024-01-25'
+  },
+  {
+    id: '4',
+    name: 'UX Designers Campaign',
+    type: 'email_sequence',
+    status: 'draft',
+    subject: 'Join Our Design Team',
+    totalRecipients: 40,
+    sentCount: 0,
+    openedCount: 0,
+    repliedCount: 0,
+    deliveryRate: 0,
+    openRate: 0,
+    replyRate: 0,
+    createdAt: '2024-01-22',
+    updatedAt: '2024-01-22'
+  },
+  {
+    id: '5',
+    name: 'DevOps Engineers Network',
+    type: 'linkedin',
+    status: 'active',
+    subject: 'DevOps Engineering Positions',
+    totalRecipients: 95,
+    sentCount: 78,
+    openedCount: 51,
+    repliedCount: 12,
+    deliveryRate: 96.8,
+    openRate: 65.4,
+    replyRate: 15.4,
+    createdAt: '2024-01-12',
+    updatedAt: '2024-01-21'
+  }
+];
