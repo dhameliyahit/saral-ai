@@ -24,6 +24,10 @@ app.use(limiter);
 // Routes
 app.use('/api/search', searchRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Saral AI Recruitment Server is running.");
+})
+
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });

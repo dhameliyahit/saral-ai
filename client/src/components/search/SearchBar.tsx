@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   FaSearch,
-  FaFilter,
   FaUpload,
   FaSpinner,
   FaLightbulb
@@ -27,7 +26,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onSearchClick,
   isLoading = false,
   onUploadJD,
-  onOpenFilters
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)

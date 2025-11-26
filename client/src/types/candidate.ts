@@ -9,6 +9,7 @@ export type AvailabilityStatus =
 
 export interface CandidateApi {
   id: number | string;
+  _id?: string;
   name: string;
   title?: string;
   jobTitle?: string;
@@ -39,7 +40,7 @@ export interface CandidateApi {
 }
 
 export interface Candidate {
-  _id: string;
+  _id?: string;
   id: string;
   name: string;
   jobTitle: string;
