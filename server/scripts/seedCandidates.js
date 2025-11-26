@@ -1,15 +1,17 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const dbConfig = {
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'saral_ai',
-  password: process.env.DB_PASSWORD || 'Dhameliy@hit31',
-  port: process.env.DB_PORT || 5432,
-};
+const pool = new Pool({
+  connectionString: "postgresql://saral_ai_user:8QxGuXlF9k3S5ybQ3pmZRhghlFAtfXvA@dpg-d4jhpkemcj7s73biidt0-a.oregon-postgres.render.com/saral_ai",
+  ssl: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 5,
+});
 
-// Real Indian names for more authentic data
+// Enhanced Indian names data
 const firstNames = [
   'Aarav', 'Vihaan', 'Advait', 'Arjun', 'Reyansh', 'Sai', 'Ananya', 'Aadhya', 'Diya', 'Ishani',
   'Rohan', 'Siddharth', 'Neha', 'Priya', 'Kavya', 'Rahul', 'Sanjay', 'Vikram', 'Ankit', 'Pooja',
@@ -123,7 +125,7 @@ const getAIVerdict = (skills, title) => {
   return rand(verdicts);
 };
 
-const generateCandidates = () => {
+const generateCandidates = (count = 40) => {
   const candidates = [];
   
   // Create specific candidate patterns for better search results
@@ -155,7 +157,7 @@ const generateCandidates = () => {
     { location: "Mumbai, Maharashtra", skills: ["Automation Testing", "Selenium", "Java", "TestNG", "Appium"], title: "Automation Tester" }
   ];
 
-  for (let i = 1; i <= 40; i++) {
+  for (let i = 1; i <= count; i++) {
     const industry = rand(Object.keys(industries));
     const pool = industries[industry];
     
@@ -167,7 +169,7 @@ const generateCandidates = () => {
       const special = specialCandidates[i - 1];
       candidateData = {
         name: fullName,
-        photo_url: `https://i.pravatar.cc/300?img=${i + 20}`, // Higher quality images
+        photo_url: `https://i.pravatar.cc/300?img=${i + 20}`,
         title: special.title,
         company: rand(pool.companies),
         experience_years: Math.floor(Math.random() * 8) + 2, // 2-10 years
@@ -214,86 +216,120 @@ const generateCandidates = () => {
   return candidates;
 };
 
-const ensureTableSchema = async (client) => {
+const clearExistingData = async () => {
+  const client = await pool.connect();
   try {
-    console.log('🗑️  Removing old data...');
+    console.log('🗑️  Clearing all existing data...');
     
-    // Drop dependent tables first
-    await client.query('DROP TABLE IF EXISTS shortlisted_candidates CASCADE');
-    await client.query('DROP TABLE IF EXISTS search_history CASCADE');
-    await client.query('DROP TABLE IF EXISTS candidates CASCADE');
+    // Clear all tables in correct order to handle foreign key constraints
+    await client.query('DELETE FROM shortlisted_candidates');
+    await client.query('DELETE FROM search_history');
+    await client.query('DELETE FROM candidates');
     
-    console.log('📊 Creating new table schema...');
-    
-    await client.query(`
-      CREATE TABLE candidates (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        photo_url VARCHAR(255),
-        title VARCHAR(200),
-        company VARCHAR(100),
-        experience_years INTEGER,
-        location VARCHAR(100),
-        skills TEXT[],
-        education VARCHAR(100),
-        availability BOOLEAN DEFAULT true,
-        email VARCHAR(100),
-        phone VARCHAR(20),
-        strengths TEXT[],
-        areas_to_probe TEXT[],
-        ai_verdict TEXT,
-        about TEXT,
-        match_percentage INTEGER,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    
-    // Create supporting tables
-    await client.query(`
-      CREATE TABLE search_history (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(100) NOT NULL,
-        search_query TEXT NOT NULL,
-        result_count INTEGER,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    
-    await client.query(`
-      CREATE TABLE shortlisted_candidates (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(100) NOT NULL,
-        candidate_id INTEGER REFERENCES candidates(id),
-        created_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(user_id, candidate_id)
-      )
-    `);
-    
-    console.log('✅ All tables created successfully');
+    console.log('✅ All existing data cleared successfully');
   } catch (error) {
-    console.error('Error creating table schema:', error);
+    console.error('Error clearing data:', error);
     throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const ensureTableSchema = async () => {
+  const client = await pool.connect();
+  try {
+    console.log('📊 Ensuring table schema exists...');
+    
+    // Check if candidates table exists
+    const tableCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'candidates'
+      )
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('🔄 Creating tables...');
+      
+      await client.query(`
+        CREATE TABLE candidates (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          photo_url VARCHAR(255),
+          title VARCHAR(200),
+          company VARCHAR(100),
+          experience_years INTEGER,
+          location VARCHAR(100),
+          skills TEXT[],
+          education VARCHAR(100),
+          availability BOOLEAN DEFAULT true,
+          email VARCHAR(100),
+          phone VARCHAR(20),
+          strengths TEXT[],
+          areas_to_probe TEXT[],
+          ai_verdict TEXT,
+          about TEXT,
+          match_percentage INTEGER,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      await client.query(`
+        CREATE TABLE search_history (
+          id SERIAL PRIMARY KEY,
+          user_id VARCHAR(100) NOT NULL,
+          search_query TEXT NOT NULL,
+          result_count INTEGER,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      await client.query(`
+        CREATE TABLE shortlisted_candidates (
+          id SERIAL PRIMARY KEY,
+          user_id VARCHAR(100) NOT NULL,
+          candidate_id INTEGER REFERENCES candidates(id),
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(user_id, candidate_id)
+        )
+      `);
+      
+      console.log('✅ All tables created successfully');
+    } else {
+      console.log('✅ Tables already exist');
+    }
+  } catch (error) {
+    console.error('Error ensuring table schema:', error);
+    throw error;
+  } finally {
+    client.release();
   }
 };
 
 const seedDatabase = async () => {
-  const client = new Client(dbConfig);
-  
   try {
-    console.log('🚀 Attempting to connect to PostgreSQL...');
-    await client.connect();
-    console.log('✅ Connected to PostgreSQL database');
+    console.log('🚀 Starting database seeding process...');
     
-    // Ensure correct table schema
-    await ensureTableSchema(client);
+    // Test connection first
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW() as current_time');
+    console.log('✅ Connected to PostgreSQL database at:', result.rows[0].current_time);
+    client.release();
     
-    // Generate and insert candidates
-    console.log('👥 Generating candidate data...');
-    const candidates = generateCandidates();
-    let insertedCount = 0;
+    // Ensure table schema exists
+    await ensureTableSchema();
+    
+    // Clear all existing data
+    await clearExistingData();
+    
+    // Generate and insert 40 candidates
+    console.log('👥 Generating 40 candidate profiles...');
+    const candidates = generateCandidates(40);
     
     console.log('📥 Inserting candidates into database...');
-    for (const candidate of candidates) {
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
       const query = `
         INSERT INTO candidates (
           name, photo_url, title, company, experience_years, location, 
@@ -321,40 +357,66 @@ const seedDatabase = async () => {
         candidate.match_percentage
       ];
       
-      await client.query(query, values);
-      insertedCount++;
-      
-      // Show progress for large inserts
-      if (insertedCount % 10 === 0) {
-        console.log(`   Inserted ${insertedCount} candidates...`);
-      }
+      await pool.query(query, values);
+      console.log(`   ✅ ${i + 1}/${candidates.length}: ${candidate.name} - ${candidate.title}`);
     }
     
-    console.log(`🎉 Successfully inserted ${insertedCount} candidates!`);
+    console.log(`🎉 Successfully inserted ${candidates.length} candidates!`);
     
-    // Show sample of inserted data
-    console.log('\n📋 Sample of inserted candidates:');
-    const sampleResult = await client.query(`
-      SELECT name, title, location, skills FROM candidates 
-      WHERE location LIKE '%Gujarat%' OR skills::text LIKE '%React%'
+    // Show detailed summary
+    console.log('\n📊 DATABASE SUMMARY:');
+    
+    // Count by location
+    const locationStats = await pool.query(`
+      SELECT location, COUNT(*) as count 
+      FROM candidates 
+      GROUP BY location 
+      ORDER BY count DESC
+    `);
+    
+    console.log('\n📍 Candidates by Location:');
+    locationStats.rows.forEach(row => {
+      console.log(`   ${row.location}: ${row.count} candidates`);
+    });
+    
+    // Count by skills
+    const skillStats = await pool.query(`
+      SELECT UNNEST(skills) as skill, COUNT(*) as count
+      FROM candidates
+      GROUP BY skill
+      ORDER BY count DESC
+      LIMIT 10
+    `);
+    
+    console.log('\n💻 Top Skills:');
+    skillStats.rows.forEach(row => {
+      console.log(`   ${row.skill}: ${row.count} candidates`);
+    });
+    
+    // Show sample candidates
+    console.log('\n👥 Sample Candidates:');
+    const sampleResult = await pool.query(`
+      SELECT name, title, location, skills, match_percentage 
+      FROM candidates 
+      ORDER BY match_percentage DESC
       LIMIT 5
     `);
     
     sampleResult.rows.forEach((row, index) => {
-      console.log(`   ${index + 1}. ${row.name} - ${row.title} - ${row.location}`);
-      console.log(`      Skills: ${row.skills.join(', ')}`);
+      console.log(`   ${index + 1}. ${row.name} - ${row.title}`);
+      console.log(`      📍 ${row.location} | 🎯 ${row.match_percentage}% match`);
+      console.log(`      💡 Skills: ${row.skills.join(', ')}`);
     });
     
-    console.log('\n🎯 Now you can search for:');
-    console.log('   - "React developer in Surat"');
-    console.log('   - "Node.js developer in Gujarat"');
-    console.log('   - "Python developer in Ahmedabad"');
+    console.log('\n✨ Seeding completed successfully!');
+    console.log('🎯 You can now search for: "React developer in Surat", "Node.js developer in Gujarat", etc.');
     
   } catch (error) {
     console.error('❌ Database error:', error.message);
+    console.error('Error details:', error);
   } finally {
-    await client.end();
-    console.log('🔚 Database connection closed');
+    await pool.end();
+    console.log('\n🔚 Database connection closed');
   }
 };
 
